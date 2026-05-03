@@ -1,7 +1,10 @@
+import os
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from database import init_db, seed_db
 from routers import alerts, categories, dashboard, items, locations, movements, suppliers
@@ -34,9 +37,16 @@ def startup():
     seed_db()
 
 
-@app.get("/", include_in_schema=False)
-def serve_frontend():
-    return FileResponse("frontend/index.html")
+if os.path.isdir("frontend/dist/assets"):
+    app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def serve_spa(full_path: str = ""):
+    dist_file = os.path.join("frontend/dist", full_path)
+    if full_path and os.path.isfile(dist_file):
+        return FileResponse(dist_file)
+    return FileResponse("frontend/dist/index.html")
 
 
 def run():

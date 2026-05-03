@@ -29,12 +29,27 @@ const sections: NavSection[] = [
   },
 ]
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean
+  onToggle: () => void
+  onClose: () => void
+}
+
+export default function Sidebar({ isOpen, onToggle, onClose }: SidebarProps) {
+  function handleNavClick() {
+    if (window.innerWidth <= 768) onClose()
+  }
+
   return (
-    <nav id="sidebar">
+    <nav id="sidebar" className={isOpen ? 'open' : 'closed'}>
       <div className="logo">
-        TAMBO IMS
-        <small>Industrial Inventory</small>
+        <div>
+          TAMBO IMS
+          <small>Industrial Inventory</small>
+        </div>
+        <button className="sidebar-toggle" onClick={onToggle} aria-label="Collapse sidebar">
+          {isOpen ? '‹' : '›'}
+        </button>
       </div>
       <nav style={{ padding: '12px 8px', flex: 1 }}>
         {sections.map(section => (
@@ -46,6 +61,7 @@ export default function Sidebar() {
                 to={item.to}
                 end={item.to === '/'}
                 className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+                onClick={handleNavClick}
               >
                 <span className="icon">{item.icon}</span>
                 {item.label}

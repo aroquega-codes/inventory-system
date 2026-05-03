@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Industrial Inventory Management</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3347;
+    --accent: #4f8ef7;
+    --accent-dim: #2a4a8c;
+    --text: #e2e8f0;
+    --text-muted: #8892a4;
+    --danger: #f04040;
+    --warning: #f59e0b;
+    --success: #22c55e;
+    --critical: #ef4444;
+    --important: #f59e0b;
+    --standard: #64748b;
+    --sidebar-w: 220px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; font-size: 14px; }
+
+  /* ── Sidebar ───────────────────────────────────────────────────────────── */
+  #sidebar {
+    width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 10;
+  }
+  #sidebar .logo {
+    padding: 20px 16px 16px; font-weight: 700; font-size: 13px; letter-spacing: .05em;
+    color: var(--accent); border-bottom: 1px solid var(--border); text-transform: uppercase;
+  }
+  #sidebar .logo small { display: block; color: var(--text-muted); font-weight: 400; font-size: 11px; margin-top: 2px; text-transform: none; letter-spacing: 0; }
+  #sidebar nav { padding: 12px 8px; flex: 1; }
+  .nav-section { font-size: 10px; letter-spacing: .1em; color: var(--text-muted); padding: 8px 8px 4px; text-transform: uppercase; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px;
+    cursor: pointer; color: var(--text-muted); font-size: 13px; margin-bottom: 2px;
+    transition: background .15s, color .15s;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent-dim); color: #93c5fd; }
+  .nav-item .icon { font-size: 16px; width: 18px; text-align: center; }
+
+  /* ── Main ──────────────────────────────────────────────────────────────── */
+  #main { margin-left: var(--sidebar-w); flex: 1; padding: 28px 32px; max-width: 1200px; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-title { font-size: 20px; font-weight: 600; margin-bottom: 20px; }
+
+  /* ── Cards ─────────────────────────────────────────────────────────────── */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .card .label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-bottom: 8px; }
+  .card .value { font-size: 28px; font-weight: 700; }
+  .card.alert-card .value { color: var(--danger); }
+  .card.warn-card .value  { color: var(--warning); }
+
+  /* ── Tables ─────────────────────────────────────────────────────────────── */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: auto; }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; padding: 14px 16px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); padding: 10px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+
+  /* ── Badges ─────────────────────────────────────────────────────────────── */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+  .badge-critical  { background: rgba(239,68,68,.15);  color: #f87171; }
+  .badge-important { background: rgba(245,158,11,.15); color: #fbbf24; }
+  .badge-standard  { background: rgba(100,116,139,.15); color: #94a3b8; }
+  .badge-open         { background: rgba(239,68,68,.15);  color: #f87171; }
+  .badge-acknowledged { background: rgba(245,158,11,.15); color: #fbbf24; }
+  .badge-ordered      { background: rgba(79,142,247,.15); color: #93c5fd; }
+  .badge-closed       { background: rgba(34,197,94,.15);  color: #4ade80; }
+
+  .stock-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .dot-red    { background: var(--critical); }
+  .dot-amber  { background: var(--warning); }
+  .dot-green  { background: var(--success); }
+
+  /* ── Toolbar ─────────────────────────────────────────────────────────────── */
+  .toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  .search-box {
+    flex: 1; min-width: 200px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 12px; color: var(--text); font-size: 13px;
+  }
+  .search-box::placeholder { color: var(--text-muted); }
+  .search-box:focus { outline: none; border-color: var(--accent); }
+  select.filter {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    padding: 7px 10px; color: var(--text); font-size: 13px; cursor: pointer;
+  }
+  select.filter:focus { outline: none; border-color: var(--accent); }
+
+  /* ── Buttons ─────────────────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+    border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: opacity .15s;
+  }
+  .btn:hover { opacity: .85; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); opacity: 1; }
+  .btn-danger { background: var(--danger); color: #fff; }
+
+  /* ── Forms / Modal ─────────────────────────────────────────────────────── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    z-index: 100; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 18px; }
+  .form-row { margin-bottom: 14px; }
+  .form-row label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
+  .form-row input, .form-row select, .form-row textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px; color: var(--text); font-size: 13px;
+    font-family: inherit;
+  }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+    outline: none; border-color: var(--accent);
+  }
+  .form-row textarea { resize: vertical; min-height: 70px; }
+  .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .error-msg { color: var(--danger); font-size: 12px; margin-top: 8px; display: none; }
+
+  /* ── Movement form page ─────────────────────────────────────────────────── */
+  .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; max-width: 560px; }
+  .form-card h2 { font-size: 15px; font-weight: 600; margin-bottom: 20px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid .full { grid-column: span 2; }
+
+  /* ── Setup tabs ─────────────────────────────────────────────────────────── */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+  .tab { padding: 7px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text-muted); }
+  .tab.active { background: var(--accent-dim); color: #93c5fd; font-weight: 500; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Misc ───────────────────────────────────────────────────────────────── */
+  .spacer { margin-bottom: 24px; }
+  .empty-state { text-align: center; padding: 48px 16px; color: var(--text-muted); }
+  .empty-state .icon { font-size: 32px; margin-bottom: 12px; }
+  .tag { font-size: 11px; color: var(--text-muted); }
+  .mono { font-family: monospace; font-size: 12px; color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+<nav id="sidebar">
+  <div class="logo">
+    TAMBO IMS
+    <small>Industrial Inventory</small>
+  </div>
+  <nav>
+    <div class="nav-section">Operations</div>
+    <div class="nav-item active" onclick="showPage('dashboard')">
+      <span class="icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="showPage('items')">
+      <span class="icon">📦</span> Items
+    </div>
+    <div class="nav-item" onclick="showPage('movements')">
+      <span class="icon">🔄</span> Movements
+    </div>
+    <div class="nav-item" onclick="showPage('alerts')">
+      <span class="icon">🔔</span> Alerts
+    </div>
+    <div class="nav-section">Admin</div>
+    <div class="nav-item" onclick="showPage('setup')">
+      <span class="icon">⚙️</span> Setup
+    </div>
+  </nav>
+</nav>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────── -->
+<main id="main">
+
+  <!-- Dashboard -->
+  <section class="page active" id="page-dashboard">
+    <div class="page-title">Dashboard</div>
+    <div class="cards" id="dash-cards">
+      <div class="card"><div class="label">Total SKUs</div><div class="value" id="d-skus">—</div></div>
+      <div class="card"><div class="label">Active Items</div><div class="value" id="d-active">—</div></div>
+      <div class="card warn-card"><div class="label">Below Reorder</div><div class="value" id="d-below">—</div></div>
+      <div class="card alert-card"><div class="label">Open Alerts</div><div class="value" id="d-alerts">—</div></div>
+      <div class="card"><div class="label">Inventory Value</div><div class="value" id="d-value">—</div></div>
+    </div>
+    <div class="table-wrap">
+      <div class="section-title">Critical Low-Stock Items</div>
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th><th>Item</th><th>Criticality</th>
+            <th>On Hand</th><th>Reorder Pt.</th><th>Supplier</th><th>Lead Time</th>
+          </tr>
+        </thead>
+        <tbody id="dash-table"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Items -->
+  <section class="page" id="page-items">
+    <div class="page-title">Items</div>
+    <div class="toolbar">
+      <input class="search-box" id="item-search" placeholder="Search by name or SKU…" oninput="filterItems()" />
+      <select class="filter" id="item-cat-filter" onchange="filterItems()">
+        <option value="">All Categories</option>
+      </select>
+      <select class="filter" id="item-crit-filter" onchange="filterItems()">
+        <option value="">All Criticality</option>
+        <option value="critical">Critical</option>
+        <option value="important">Important</option>
+        <option value="standard">Standard</option>
+      </select>
+      <button class="btn btn-primary" onclick="openItemModal()">+ New Item</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th><th>Name</th><th>Category</th><th>Criticality</th>
+            <th>On Hand</th><th>Reorder Pt.</th><th>Unit Cost</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="items-table"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Movements -->
+  <section class="page" id="page-movements">
+    <div class="page-title">Stock Movements</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+      <!-- New movement form -->
+      <div class="form-card">
+        <h2>Record Movement</h2>
+        <div class="form-row">
+          <label>Item *</label>
+          <select id="mv-item"></select>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Type *</label>
+            <select id="mv-type">
+              <option value="receipt">Receipt</option>
+              <option value="issue">Issue</option>
+              <option value="transfer">Transfer</option>
+              <option value="adjustment">Adjustment</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Quantity *</label>
+            <input type="number" id="mv-qty" step="0.001" min="0.001" placeholder="e.g. 5" />
+          </div>
+          <div class="form-row">
+            <label>From Location</label>
+            <select id="mv-from"><option value="">— none —</option></select>
+          </div>
+          <div class="form-row">
+            <label>To Location</label>
+            <select id="mv-to"><option value="">— none —</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Reference (PO/WO/REQ number)</label>
+          <input type="text" id="mv-ref" placeholder="e.g. WO-2026-0301" />
+        </div>
+        <div class="form-row">
+          <label>Performed By</label>
+          <input type="text" id="mv-by" placeholder="Name or role" />
+        </div>
+        <div class="form-row">
+          <label>Notes <span id="mv-notes-req" style="color:var(--warning);display:none">(required for adjustment)</span></label>
+          <textarea id="mv-notes" rows="2" placeholder="Reason, batch number, etc."></textarea>
+        </div>
+        <div id="mv-error" class="error-msg"></div>
+        <div class="form-actions" style="justify-content:flex-start;margin-top:0">
+          <button class="btn btn-primary" onclick="submitMovement()">Save Movement</button>
+        </div>
+      </div>
+
+      <!-- Recent movements -->
+      <div>
+        <div class="toolbar" style="margin-bottom:12px">
+          <select class="filter" id="mv-filter-item" onchange="loadMovements()" style="flex:1">
+            <option value="">All Items</option>
+          </select>
+          <select class="filter" id="mv-filter-type" onchange="loadMovements()">
+            <option value="">All Types</option>
+            <option value="receipt">Receipt</option>
+            <option value="issue">Issue</option>
+            <option value="transfer">Transfer</option>
+            <option value="adjustment">Adjustment</option>
+            <option value="initial_stock">Initial Stock</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <div class="section-title">Recent Movements</div>
+          <table>
+            <thead>
+              <tr><th>Date</th><th>Item</th><th>Type</th><th>Qty</th><th>Reference</th></tr>
+            </thead>
+            <tbody id="mv-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Alerts -->
+  <section class="page" id="page-alerts">
+    <div class="page-title">Reorder Alerts</div>
+    <div class="toolbar">
+      <select class="filter" id="alert-filter" onchange="loadAlerts()">
+        <option value="">All Statuses</option>
+        <option value="open" selected>Open</option>
+        <option value="acknowledged">Acknowledged</option>
+        <option value="ordered">Ordered</option>
+        <option value="closed">Closed</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th><th>Criticality</th><th>On Hand</th><th>Reorder Pt.</th>
+            <th>Triggered</th><th>Status</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="alerts-table"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Setup -->
+  <section class="page" id="page-setup">
+    <div class="page-title">Setup</div>
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('categories')">Categories</div>
+      <div class="tab" onclick="showTab('suppliers')">Suppliers</div>
+      <div class="tab" onclick="showTab('locations')">Locations</div>
+    </div>
+
+    <!-- Categories tab -->
+    <div class="tab-panel active" id="tab-categories">
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="openModal('cat-modal')">+ New Category</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Description</th><th>Actions</th></tr></thead>
+          <tbody id="cats-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Suppliers tab -->
+    <div class="tab-panel" id="tab-suppliers">
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="openModal('sup-modal')">+ New Supplier</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Contact</th><th>Lead Time</th><th>Actions</th></tr></thead>
+          <tbody id="sups-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Locations tab -->
+    <div class="tab-panel" id="tab-locations">
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="openModal('loc-modal')">+ New Location</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Description</th><th>Actions</th></tr></thead>
+          <tbody id="locs-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ── Modals ─────────────────────────────────────────────────────────────── -->
+
+<!-- Item Modal -->
+<div class="modal-overlay" id="item-modal">
+  <div class="modal">
+    <h2 id="item-modal-title">New Item</h2>
+    <input type="hidden" id="item-id" />
+    <div class="form-grid">
+      <div class="form-row">
+        <label>SKU *</label>
+        <input type="text" id="item-sku" placeholder="e.g. BRG-SKF-6205" />
+      </div>
+      <div class="form-row">
+        <label>Unit of Measure *</label>
+        <input type="text" id="item-uom" placeholder="each / kg / litre…" />
+      </div>
+      <div class="form-row full">
+        <label>Name *</label>
+        <input type="text" id="item-name" />
+      </div>
+      <div class="form-row full">
+        <label>Description</label>
+        <input type="text" id="item-desc" />
+      </div>
+      <div class="form-row">
+        <label>Category</label>
+        <select id="item-cat-id"></select>
+      </div>
+      <div class="form-row">
+        <label>Default Supplier</label>
+        <select id="item-sup-id"></select>
+      </div>
+      <div class="form-row">
+        <label>Unit Cost (S/.)</label>
+        <input type="number" id="item-cost" step="0.01" min="0" />
+      </div>
+      <div class="form-row">
+        <label>Criticality</label>
+        <select id="item-crit">
+          <option value="critical">Critical</option>
+          <option value="important">Important</option>
+          <option value="standard" selected>Standard</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Reorder Point</label>
+        <input type="number" id="item-reorder-pt" min="0" step="1" />
+      </div>
+      <div class="form-row">
+        <label>Reorder Quantity</label>
+        <input type="number" id="item-reorder-qty" min="0" step="1" />
+      </div>
+      <div class="form-row">
+        <label>Lead Time Override (days)</label>
+        <input type="number" id="item-lead" min="1" step="1" placeholder="Leave blank = supplier default" />
+      </div>
+    </div>
+    <div id="item-error" class="error-msg"></div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal('item-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveItem()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Category Modal -->
+<div class="modal-overlay" id="cat-modal">
+  <div class="modal">
+    <h2>Category</h2>
+    <input type="hidden" id="cat-id" />
+    <div class="form-row"><label>Name *</label><input type="text" id="cat-name" /></div>
+    <div class="form-row"><label>Description</label><input type="text" id="cat-desc" /></div>
+    <div id="cat-error" class="error-msg"></div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal('cat-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCategory()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Supplier Modal -->
+<div class="modal-overlay" id="sup-modal">
+  <div class="modal">
+    <h2>Supplier</h2>
+    <input type="hidden" id="sup-id" />
+    <div class="form-row"><label>Name *</label><input type="text" id="sup-name" /></div>
+    <div class="form-row"><label>Contact</label><input type="text" id="sup-contact" /></div>
+    <div class="form-row"><label>Lead Time (days) *</label><input type="number" id="sup-lead" min="1" /></div>
+    <div id="sup-error" class="error-msg"></div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal('sup-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSupplier()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Location Modal -->
+<div class="modal-overlay" id="loc-modal">
+  <div class="modal">
+    <h2>Location</h2>
+    <input type="hidden" id="loc-id" />
+    <div class="form-row"><label>Name *</label><input type="text" id="loc-name" /></div>
+    <div class="form-row"><label>Description</label><input type="text" id="loc-desc" /></div>
+    <div id="loc-error" class="error-msg"></div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal('loc-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLocation()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Alert Status Modal -->
+<div class="modal-overlay" id="alert-modal">
+  <div class="modal">
+    <h2>Update Alert Status</h2>
+    <input type="hidden" id="alert-id" />
+    <div class="form-row">
+      <label>New Status</label>
+      <select id="alert-status">
+        <option value="open">Open</option>
+        <option value="acknowledged">Acknowledged</option>
+        <option value="ordered">Ordered</option>
+        <option value="closed">Closed</option>
+      </select>
+    </div>
+    <div class="form-row"><label>Notes</label><textarea id="alert-notes"></textarea></div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal('alert-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAlertStatus()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+
+// ── State ────────────────────────────────────────────────────────────────────
+let allItems = [];
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  const loaders = {
+    dashboard: loadDashboard,
+    items: loadItems,
+    movements: loadMovements,
+    alerts: loadAlerts,
+    setup: loadSetup,
+  };
+  if (loaders[name]) loaders[name]();
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || JSON.stringify(err));
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+function critBadge(c) {
+  return `<span class="badge badge-${c}">${c}</span>`;
+}
+
+function stockDot(item) {
+  if (item.is_below_reorder) {
+    const ratio = item.quantity_on_hand / item.reorder_point;
+    const cls = ratio <= 0.5 ? 'dot-red' : 'dot-amber';
+    return `<span class="stock-dot ${cls}"></span>`;
+  }
+  return `<span class="stock-dot dot-green"></span>`;
+}
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function currency(v) {
+  return 'S/. ' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function hideErr(id) {
+  const el = document.getElementById(id);
+  el.style.display = 'none';
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const d = await api('GET', '/dashboard/summary');
+  document.getElementById('d-skus').textContent   = d.total_skus;
+  document.getElementById('d-active').textContent = d.active_items;
+  document.getElementById('d-below').textContent  = d.items_below_reorder;
+  document.getElementById('d-alerts').textContent = d.open_alerts;
+  document.getElementById('d-value').textContent  = currency(d.total_inventory_value);
+
+  const tbody = document.getElementById('dash-table');
+  if (!d.low_stock_items.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">All items are sufficiently stocked</td></tr>';
+    return;
+  }
+  tbody.innerHTML = d.low_stock_items.map(item => `
+    <tr>
+      <td class="mono">${item.sku}</td>
+      <td>${item.name}</td>
+      <td>${critBadge(item.criticality)}</td>
+      <td>${stockDot({is_below_reorder:true,quantity_on_hand:item.quantity_on_hand,reorder_point:item.reorder_point})}
+          <strong>${item.quantity_on_hand}</strong></td>
+      <td>${item.reorder_point}</td>
+      <td class="tag">${item.supplier_name || '—'}</td>
+      <td class="tag">${item.lead_time_days != null ? item.lead_time_days + 'd' : '—'}</td>
+    </tr>`).join('');
+}
+
+// ── Items ─────────────────────────────────────────────────────────────────────
+async function loadItems() {
+  const [items, cats] = await Promise.all([
+    api('GET', '/items/'),
+    api('GET', '/categories/'),
+  ]);
+  allItems = items;
+
+  const catSel = document.getElementById('item-cat-filter');
+  const current = catSel.value;
+  catSel.innerHTML = '<option value="">All Categories</option>' +
+    cats.map(c => `<option value="${c.id}"${c.id == current ? ' selected' : ''}>${c.name}</option>`).join('');
+
+  renderItemsTable(items);
+}
+
+function filterItems() {
+  const search = document.getElementById('item-search').value.toLowerCase();
+  const catId  = document.getElementById('item-cat-filter').value;
+  const crit   = document.getElementById('item-crit-filter').value;
+  const filtered = allItems.filter(i =>
+    (!search || i.name.toLowerCase().includes(search) || i.sku.toLowerCase().includes(search)) &&
+    (!catId || String(i.category_id) === catId) &&
+    (!crit  || i.criticality === crit)
+  );
+  renderItemsTable(filtered);
+}
+
+function renderItemsTable(items) {
+  const tbody = document.getElementById('items-table');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No items found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(item => `
+    <tr>
+      <td class="mono">${item.sku}</td>
+      <td>${item.name}${item.description ? `<br><span class="tag">${item.description}</span>` : ''}</td>
+      <td class="tag">${item.category_name || '—'}</td>
+      <td>${critBadge(item.criticality)}</td>
+      <td>${stockDot(item)}<strong>${item.quantity_on_hand}</strong> ${item.unit_of_measure}</td>
+      <td>${item.reorder_point}</td>
+      <td>${currency(item.unit_cost)}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="editItem(${item.id})">Edit</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function openItemModal(id) {
+  const [cats, sups] = await Promise.all([api('GET', '/categories/'), api('GET', '/suppliers/')]);
+  document.getElementById('item-cat-id').innerHTML =
+    '<option value="">— none —</option>' + cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  document.getElementById('item-sup-id').innerHTML =
+    '<option value="">— none —</option>' + sups.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+  document.getElementById('item-id').value = '';
+  ['sku','name','desc','uom','cost','reorder-pt','reorder-qty','lead'].forEach(f => {
+    document.getElementById('item-' + f).value = '';
+  });
+  document.getElementById('item-crit').value = 'standard';
+  document.getElementById('item-modal-title').textContent = 'New Item';
+  hideErr('item-error');
+  openModal('item-modal');
+}
+
+async function editItem(id) {
+  const item = await api('GET', '/items/' + id);
+  await openItemModal();
+  document.getElementById('item-id').value       = item.id;
+  document.getElementById('item-sku').value       = item.sku;
+  document.getElementById('item-name').value      = item.name;
+  document.getElementById('item-desc').value      = item.description || '';
+  document.getElementById('item-uom').value       = item.unit_of_measure;
+  document.getElementById('item-cost').value      = item.unit_cost;
+  document.getElementById('item-crit').value      = item.criticality;
+  document.getElementById('item-reorder-pt').value  = item.reorder_point;
+  document.getElementById('item-reorder-qty').value = item.reorder_quantity;
+  document.getElementById('item-lead').value      = item.lead_time_days || '';
+  document.getElementById('item-cat-id').value    = item.category_id || '';
+  document.getElementById('item-sup-id').value    = item.default_supplier_id || '';
+  document.getElementById('item-modal-title').textContent = 'Edit Item';
+}
+
+async function saveItem() {
+  hideErr('item-error');
+  const id = document.getElementById('item-id').value;
+  const body = {
+    sku: document.getElementById('item-sku').value.trim(),
+    name: document.getElementById('item-name').value.trim(),
+    description: document.getElementById('item-desc').value.trim() || null,
+    unit_of_measure: document.getElementById('item-uom').value.trim() || 'each',
+    unit_cost: parseFloat(document.getElementById('item-cost').value) || 0,
+    criticality: document.getElementById('item-crit').value,
+    reorder_point: parseInt(document.getElementById('item-reorder-pt').value) || 0,
+    reorder_quantity: parseInt(document.getElementById('item-reorder-qty').value) || 0,
+    lead_time_days: document.getElementById('item-lead').value ? parseInt(document.getElementById('item-lead').value) : null,
+    category_id: document.getElementById('item-cat-id').value ? parseInt(document.getElementById('item-cat-id').value) : null,
+    default_supplier_id: document.getElementById('item-sup-id').value ? parseInt(document.getElementById('item-sup-id').value) : null,
+  };
+  try {
+    if (id) await api('PUT', '/items/' + id, body);
+    else await api('POST', '/items/', body);
+    closeModal('item-modal');
+    loadItems();
+  } catch (e) {
+    showErr('item-error', e.message);
+  }
+}
+
+// ── Movements ─────────────────────────────────────────────────────────────────
+async function initMovementsPage() {
+  const [items, locs] = await Promise.all([api('GET', '/items/'), api('GET', '/locations/')]);
+
+  const mvItem = document.getElementById('mv-item');
+  mvItem.innerHTML = items.map(i => `<option value="${i.id}">${i.sku} — ${i.name}</option>`).join('');
+
+  const locOpts = '<option value="">— none —</option>' + locs.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+  document.getElementById('mv-from').innerHTML = locOpts;
+  document.getElementById('mv-to').innerHTML   = locOpts;
+
+  const fItem = document.getElementById('mv-filter-item');
+  fItem.innerHTML = '<option value="">All Items</option>' +
+    items.map(i => `<option value="${i.id}">${i.sku} — ${i.name}</option>`).join('');
+
+  document.getElementById('mv-type').addEventListener('change', e => {
+    document.getElementById('mv-notes-req').style.display = e.target.value === 'adjustment' ? 'inline' : 'none';
+  });
+}
+
+async function loadMovements() {
+  const itemId = document.getElementById('mv-filter-item')?.value;
+  const type   = document.getElementById('mv-filter-type')?.value;
+  let url = '/movements/?limit=50';
+  if (itemId) url += '&item_id=' + itemId;
+  if (type)   url += '&movement_type=' + type;
+  const mvs = await api('GET', url);
+
+  const tbody = document.getElementById('mv-table');
+  if (!mvs.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No movements found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = mvs.map(m => {
+    const sign = m.quantity > 0 ? '+' : '';
+    const color = m.quantity > 0 ? 'var(--success)' : (m.quantity < 0 ? 'var(--danger)' : 'var(--text-muted)');
+    return `<tr>
+      <td class="tag">${fmtDate(m.timestamp)}</td>
+      <td><span class="mono">${m.item_sku}</span><br><span class="tag">${m.item_name}</span></td>
+      <td><span class="badge badge-${m.movement_type === 'receipt' || m.movement_type === 'initial_stock' ? 'ordered' : m.movement_type === 'issue' ? 'open' : 'acknowledged'}">${m.movement_type}</span></td>
+      <td style="color:${color};font-weight:600">${sign}${m.quantity}</td>
+      <td class="tag">${m.reference || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function submitMovement() {
+  hideErr('mv-error');
+  const qty = parseFloat(document.getElementById('mv-qty').value);
+  const type = document.getElementById('mv-type').value;
+
+  if (!qty || qty <= 0) { showErr('mv-error', 'Quantity must be greater than 0'); return; }
+
+  // Issues and transfers send negative quantity
+  const signedQty = (type === 'issue' || type === 'transfer') ? -Math.abs(qty) : Math.abs(qty);
+
+  const body = {
+    item_id: parseInt(document.getElementById('mv-item').value),
+    movement_type: type,
+    quantity: signedQty,
+    location_from_id: document.getElementById('mv-from').value ? parseInt(document.getElementById('mv-from').value) : null,
+    location_to_id:   document.getElementById('mv-to').value   ? parseInt(document.getElementById('mv-to').value)   : null,
+    reference:    document.getElementById('mv-ref').value.trim()  || null,
+    performed_by: document.getElementById('mv-by').value.trim()   || null,
+    notes:        document.getElementById('mv-notes').value.trim() || null,
+  };
+  try {
+    await api('POST', '/movements/', body);
+    document.getElementById('mv-qty').value = '';
+    document.getElementById('mv-ref').value = '';
+    document.getElementById('mv-notes').value = '';
+    loadMovements();
+    loadDashboard();
+  } catch (e) {
+    showErr('mv-error', e.message);
+  }
+}
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+async function loadAlerts() {
+  const status = document.getElementById('alert-filter').value;
+  let url = '/alerts/';
+  if (status) url += '?status=' + status;
+  const alerts = await api('GET', url);
+
+  const tbody = document.getElementById('alerts-table');
+  if (!alerts.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="icon">✅</div>No alerts</td></tr>';
+    return;
+  }
+  tbody.innerHTML = alerts.map(a => `
+    <tr>
+      <td><span class="mono">${a.item_sku}</span><br><span class="tag">${a.item_name}</span></td>
+      <td>${critBadge(a.item_criticality)}</td>
+      <td><strong>${a.quantity_on_hand}</strong></td>
+      <td>${a.reorder_point}</td>
+      <td class="tag">${fmtDate(a.triggered_at)}</td>
+      <td><span class="badge badge-${a.status}">${a.status}</span></td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="openAlertModal(${a.id}, '${a.status}', \`${(a.notes||'').replace(/`/g,'')}\`)">Update</button>
+      </td>
+    </tr>`).join('');
+}
+
+function openAlertModal(id, status, notes) {
+  document.getElementById('alert-id').value     = id;
+  document.getElementById('alert-status').value = status;
+  document.getElementById('alert-notes').value  = notes;
+  openModal('alert-modal');
+}
+
+async function saveAlertStatus() {
+  const id = document.getElementById('alert-id').value;
+  const body = {
+    status: document.getElementById('alert-status').value,
+    notes:  document.getElementById('alert-notes').value.trim() || null,
+  };
+  await api('PATCH', '/alerts/' + id, body);
+  closeModal('alert-modal');
+  loadAlerts();
+}
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+async function loadSetup() {
+  loadCategories(); loadSuppliers(); loadLocations();
+}
+
+async function loadCategories() {
+  const cats = await api('GET', '/categories/');
+  const tbody = document.getElementById('cats-table');
+  tbody.innerHTML = cats.map(c => `
+    <tr>
+      <td>${c.name}</td>
+      <td class="tag">${c.description || '—'}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="editCategory(${c.id},'${c.name.replace(/'/g,'')}','${(c.description||'').replace(/'/g,'')}')">Edit</button>
+      </td>
+    </tr>`).join('');
+}
+
+function editCategory(id, name, desc) {
+  document.getElementById('cat-id').value   = id;
+  document.getElementById('cat-name').value = name;
+  document.getElementById('cat-desc').value = desc;
+  hideErr('cat-error');
+  openModal('cat-modal');
+}
+
+async function saveCategory() {
+  hideErr('cat-error');
+  const id = document.getElementById('cat-id').value;
+  const body = {
+    name: document.getElementById('cat-name').value.trim(),
+    description: document.getElementById('cat-desc').value.trim() || null,
+  };
+  try {
+    if (id) await api('PUT', '/categories/' + id, body);
+    else await api('POST', '/categories/', body);
+    document.getElementById('cat-id').value = '';
+    document.getElementById('cat-name').value = '';
+    document.getElementById('cat-desc').value = '';
+    closeModal('cat-modal');
+    loadCategories();
+  } catch (e) {
+    showErr('cat-error', e.message);
+  }
+}
+
+async function loadSuppliers() {
+  const sups = await api('GET', '/suppliers/');
+  const tbody = document.getElementById('sups-table');
+  tbody.innerHTML = sups.map(s => `
+    <tr>
+      <td>${s.name}</td>
+      <td class="tag">${s.contact || '—'}</td>
+      <td>${s.lead_time_days} day${s.lead_time_days !== 1 ? 's' : ''}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="editSupplier(${s.id},'${s.name.replace(/'/g,'')}','${(s.contact||'').replace(/'/g,'')}',${s.lead_time_days})">Edit</button>
+      </td>
+    </tr>`).join('');
+}
+
+function editSupplier(id, name, contact, lead) {
+  document.getElementById('sup-id').value      = id;
+  document.getElementById('sup-name').value    = name;
+  document.getElementById('sup-contact').value = contact;
+  document.getElementById('sup-lead').value    = lead;
+  hideErr('sup-error');
+  openModal('sup-modal');
+}
+
+async function saveSupplier() {
+  hideErr('sup-error');
+  const id = document.getElementById('sup-id').value;
+  const body = {
+    name: document.getElementById('sup-name').value.trim(),
+    contact: document.getElementById('sup-contact').value.trim() || null,
+    lead_time_days: parseInt(document.getElementById('sup-lead').value) || 7,
+  };
+  try {
+    if (id) await api('PUT', '/suppliers/' + id, body);
+    else await api('POST', '/suppliers/', body);
+    document.getElementById('sup-id').value = '';
+    closeModal('sup-modal');
+    loadSuppliers();
+  } catch (e) {
+    showErr('sup-error', e.message);
+  }
+}
+
+async function loadLocations() {
+  const locs = await api('GET', '/locations/');
+  const tbody = document.getElementById('locs-table');
+  tbody.innerHTML = locs.map(l => `
+    <tr>
+      <td>${l.name}</td>
+      <td class="tag">${l.description || '—'}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="editLocation(${l.id},'${l.name.replace(/'/g,'')}','${(l.description||'').replace(/'/g,'')}')">Edit</button>
+      </td>
+    </tr>`).join('');
+}
+
+function editLocation(id, name, desc) {
+  document.getElementById('loc-id').value   = id;
+  document.getElementById('loc-name').value = name;
+  document.getElementById('loc-desc').value = desc;
+  hideErr('loc-error');
+  openModal('loc-modal');
+}
+
+async function saveLocation() {
+  hideErr('loc-error');
+  const id = document.getElementById('loc-id').value;
+  const body = {
+    name: document.getElementById('loc-name').value.trim(),
+    description: document.getElementById('loc-desc').value.trim() || null,
+  };
+  try {
+    if (id) await api('PUT', '/locations/' + id, body);
+    else await api('POST', '/locations/', body);
+    document.getElementById('loc-id').value = '';
+    closeModal('loc-modal');
+    loadLocations();
+  } catch (e) {
+    showErr('loc-error', e.message);
+  }
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+loadDashboard();
+// Pre-populate movement page selects so the form is ready
+document.addEventListener('DOMContentLoaded', initMovementsPage);
+initMovementsPage();
+</script>
+</body>
+</html>

@@ -1,17 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { CritBadge, StockDot, currency } from '../utils'
+import type { DashboardSummary } from '../types'
 
 export default function Dashboard() {
-  const [summary, setSummary] = useState(null)
-  const [error, setError] = useState(null)
+  const { data: summary, isPending, isError, error } = useQuery<DashboardSummary>({
+    queryKey: ['dashboard-summary'],
+    queryFn: () => api.get<DashboardSummary>('/dashboard/summary'),
+  })
 
-  useEffect(() => {
-    api.get('/dashboard/summary').then(setSummary).catch(e => setError(e.message))
-  }, [])
-
-  if (error) return <div className="empty-state">{error}</div>
-  if (!summary) return <div className="empty-state">Loading…</div>
+  if (isPending) return <div className="empty-state">Loading…</div>
+  if (isError) return <div className="empty-state">{(error as Error).message}</div>
 
   return (
     <>

@@ -1,6 +1,17 @@
 import { NavLink } from 'react-router-dom'
 
-const sections = [
+interface NavItem {
+  to: string
+  icon: string
+  label: string
+}
+
+interface NavSection {
+  label: string
+  items: NavItem[]
+}
+
+const sections: NavSection[] = [
   {
     label: 'Operations',
     items: [

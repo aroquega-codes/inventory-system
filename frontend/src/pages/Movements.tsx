@@ -1,8 +1,21 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { fmtDate } from '../utils'
+import type { Item, Location, Movement, MovementType } from '../types'
 
-const EMPTY_FORM = {
+interface MovementForm {
+  item_id: string
+  movement_type: MovementType
+  quantity: string
+  location_from_id: string
+  location_to_id: string
+  reference: string
+  performed_by: string
+  notes: string
+}
+
+const EMPTY_FORM: MovementForm = {
   item_id: '',
   movement_type: 'receipt',
   quantity: '',
@@ -13,45 +26,51 @@ const EMPTY_FORM = {
   notes: '',
 }
 
-function movementBadgeClass(type) {
+function movementBadgeClass(type: MovementType): string {
   if (type === 'receipt' || type === 'initial_stock') return 'badge-ordered'
   if (type === 'issue') return 'badge-open'
   return 'badge-acknowledged'
 }
 
 export default function Movements() {
-  const [items, setItems] = useState([])
-  const [locations, setLocations] = useState([])
-  const [movements, setMovements] = useState([])
-  const [form, setForm] = useState(EMPTY_FORM)
+  const queryClient = useQueryClient()
+  const [form, setForm] = useState<MovementForm>(EMPTY_FORM)
   const [formError, setFormError] = useState('')
   const [filterItem, setFilterItem] = useState('')
   const [filterType, setFilterType] = useState('')
-  const [loading, setLoading] = useState(true)
 
-  const loadMovements = useCallback(async (itemId, type) => {
-    let url = '/movements/?limit=50'
-    if (itemId) url += '&item_id=' + itemId
-    if (type) url += '&movement_type=' + type
-    const data = await api.get(url)
-    setMovements(data)
-  }, [])
+  const { data: items = [], isPending: itemsPending } = useQuery<Item[]>({
+    queryKey: ['items'],
+    queryFn: () => api.get<Item[]>('/items/'),
+  })
 
-  useEffect(() => {
-    Promise.all([api.get('/items/'), api.get('/locations/')]).then(([itemsData, locsData]) => {
-      setItems(itemsData)
-      setLocations(locsData)
-      if (itemsData.length > 0) setForm(prev => ({ ...prev, item_id: String(itemsData[0].id) }))
-      setLoading(false)
-    })
-    loadMovements('', '')
-  }, [loadMovements])
+  const itemId = form.item_id || (items.length > 0 ? String(items[0].id) : '')
 
-  useEffect(() => {
-    if (!loading) loadMovements(filterItem, filterType)
-  }, [filterItem, filterType, loading, loadMovements])
+  const { data: locations = [] } = useQuery<Location[]>({
+    queryKey: ['locations'],
+    queryFn: () => api.get<Location[]>('/locations/'),
+  })
 
-  async function submitMovement() {
+  const movementsUrl = '/movements/?limit=50' +
+    (filterItem ? '&item_id=' + filterItem : '') +
+    (filterType ? '&movement_type=' + filterType : '')
+
+  const { data: movements = [] } = useQuery<Movement[]>({
+    queryKey: ['movements', filterItem, filterType],
+    queryFn: () => api.get<Movement[]>(movementsUrl),
+  })
+
+  const submitMovement = useMutation({
+    mutationFn: (body: unknown) => api.post('/movements/', body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['movements'] })
+      queryClient.invalidateQueries({ queryKey: ['items'] })
+      setForm(prev => ({ ...prev, quantity: '', reference: '', performed_by: '', notes: '', location_from_id: '', location_to_id: '' }))
+    },
+    onError: (e) => setFormError((e as Error).message),
+  })
+
+  function handleSubmit() {
     setFormError('')
     const qty = parseFloat(form.quantity)
     if (!qty || qty <= 0) { setFormError('Quantity must be greater than 0'); return }
@@ -59,8 +78,8 @@ export default function Movements() {
     const signedQty = (form.movement_type === 'issue' || form.movement_type === 'transfer')
       ? -Math.abs(qty) : Math.abs(qty)
 
-    const body = {
-      item_id: parseInt(form.item_id),
+    submitMovement.mutate({
+      item_id: parseInt(itemId),
       movement_type: form.movement_type,
       quantity: signedQty,
       location_from_id: form.location_from_id ? parseInt(form.location_from_id) : null,
@@ -68,38 +87,31 @@ export default function Movements() {
       reference: form.reference.trim() || null,
       performed_by: form.performed_by.trim() || null,
       notes: form.notes.trim() || null,
-    }
-    try {
-      await api.post('/movements/', body)
-      setForm(prev => ({ ...prev, quantity: '', reference: '', performed_by: '', notes: '', location_from_id: '', location_to_id: '' }))
-      loadMovements(filterItem, filterType)
-    } catch (e) {
-      setFormError(e.message)
-    }
+    })
   }
 
-  const setField = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
+  const setField = <K extends keyof MovementForm>(field: K, value: MovementForm[K]) =>
+    setForm(prev => ({ ...prev, [field]: value }))
 
-  if (loading) return <div className="empty-state">Loading…</div>
+  if (itemsPending) return <div className="empty-state">Loading…</div>
 
   return (
     <>
       <div className="page-title">Stock Movements</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
 
-        {/* Record movement form */}
         <div className="form-card">
           <h2>Record Movement</h2>
           <div className="form-row">
             <label>Item *</label>
-            <select value={form.item_id} onChange={e => setField('item_id', e.target.value)}>
+            <select value={itemId} onChange={e => setField('item_id', e.target.value)}>
               {items.map(i => <option key={i.id} value={i.id}>{i.sku} — {i.name}</option>)}
             </select>
           </div>
           <div className="form-grid">
             <div className="form-row">
               <label>Type *</label>
-              <select value={form.movement_type} onChange={e => setField('movement_type', e.target.value)}>
+              <select value={form.movement_type} onChange={e => setField('movement_type', e.target.value as MovementType)}>
                 <option value="receipt">Receipt</option>
                 <option value="issue">Issue</option>
                 <option value="transfer">Transfer</option>
@@ -144,11 +156,10 @@ export default function Movements() {
           </div>
           {formError && <div className="error-msg">{formError}</div>}
           <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: '12px' }}>
-            <button className="btn btn-primary" onClick={submitMovement}>Save Movement</button>
+            <button className="btn btn-primary" onClick={handleSubmit}>Save Movement</button>
           </div>
         </div>
 
-        {/* Recent movements */}
         <div>
           <div className="toolbar" style={{ marginBottom: '12px' }}>
             <select className="filter" value={filterItem} onChange={e => setFilterItem(e.target.value)} style={{ flex: 1 }}>

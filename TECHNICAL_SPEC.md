@@ -4,10 +4,13 @@
 
 | Concern | Choice | Rationale |
 |---------|--------|-----------|
-| UI library | React 18 | Component model maps naturally to the modal-heavy CRUD screens; `useState`/`useEffect` replace the imperative DOM manipulation and mutable globals in the legacy file |
-| Build tool | Vite 5 | Native ESM dev server with sub-100 ms HMR; zero-config JSX transform; optimised production build with automatic code splitting and asset hashing |
-| Routing | React Router v6 | Declarative URL-based routing replaces the `showPage()` CSS-toggle pattern; gives each section a real URL so browser back/forward and bookmarks work correctly |
-| HTTP client | Fetch (native) | Keeps the dependency footprint minimal; async/await API matches existing code; thin wrapper handles error normalisation in one place |
+| Language | TypeScript 5 | Strict mode enabled; all source files are `.ts` / `.tsx`; domain types live in `src/types.ts` |
+| UI library | React 18 | Component model maps naturally to the modal-heavy CRUD screens |
+| Build tool | Vite 5 | Native ESM dev server with sub-100 ms HMR; zero-config TSX transform; optimised production build with automatic code splitting and asset hashing |
+| Routing | React Router v6 | Declarative URL-based routing; each section has a real URL so browser back/forward and bookmarks work correctly |
+| Data fetching | TanStack Query v5 | `useQuery` replaces all `useEffect` + manual state combos for loading/error/data; `useMutation` handles optimistic invalidation after writes; no `useEffect` is used anywhere for data fetching |
+| HTTP client | Fetch (native) | Thin generic `api` wrapper (`api.get<T>`, `api.post<T>`, …) handles error normalisation; consumed by TanStack Query `queryFn`s |
+| Component primitives | Base UI (`@base-ui/react`) | Unstyled, accessible headless components (Dialog, Select, etc.) that compose with the existing CSS design system; replaces hand-rolled primitives like the old `Modal` |
 | Styling | Plain CSS (global) | The design system is already expressed as CSS custom properties; no CSS-in-JS or utility framework is warranted at this scale |
 
 ---
@@ -18,23 +21,25 @@
 frontend/
 ├── index.html              ← Vite HTML entry
 ├── package.json
-├── vite.config.js          ← proxy /api → backend :8000
+├── tsconfig.json           ← strict TS config (moduleResolution: bundler, noEmit)
+├── vite.config.ts          ← proxy /api → backend :8000
 └── src/
-    ├── main.jsx            ← ReactDOM.createRoot + BrowserRouter
-    ├── App.jsx             ← persistent layout (Sidebar + Routes)
+    ├── main.tsx            ← ReactDOM.createRoot + BrowserRouter + QueryClientProvider
+    ├── App.tsx             ← persistent layout (Sidebar + Routes)
     ├── index.css           ← design-system variables + all component styles
-    ├── utils.jsx           ← critBadge, stockDot, fmtDate, currency helpers
+    ├── types.ts            ← domain types: Item, Category, Supplier, Location, Movement, Alert, DashboardSummary
+    ├── utils.tsx           ← CritBadge, StockDot, fmtDate, currency helpers (typed)
     ├── api/
-    │   └── client.js       ← thin fetch wrapper: get / post / put / patch / delete
+    │   └── client.ts       ← generic fetch wrapper: get<T> / post<T> / put<T> / patch<T> / delete<T>
     ├── components/
-    │   ├── Sidebar.jsx     ← NavLink-based navigation (active state via router)
-    │   └── Modal.jsx       ← overlay with Escape key + backdrop-click dismiss
+    │   ├── Sidebar.tsx     ← NavLink-based navigation (active state via router)
+    │   └── Modal.tsx       ← Base UI Dialog wrapper with Escape + backdrop dismiss
     └── pages/
-        ├── Dashboard.jsx
-        ├── Items.jsx
-        ├── Movements.jsx
-        ├── Alerts.jsx
-        └── Setup.jsx       ← tabbed: Categories / Suppliers / Locations
+        ├── Dashboard.tsx
+        ├── Items.tsx
+        ├── Movements.tsx
+        ├── Alerts.tsx
+        └── Setup.tsx       ← tabbed: Categories / Suppliers / Locations
 ```
 
 ---
@@ -53,6 +58,15 @@ All routes are rendered inside a persistent `Sidebar` + `main` shell. `BrowserRo
 
 ---
 
+## Data fetching conventions
+
+- **No `useEffect`** — all side-effectful data loading goes through TanStack Query.
+- `useQuery({ queryKey, queryFn })` for reads. The `queryKey` includes all filter/param values so re-fetches happen automatically when they change.
+- `useMutation({ mutationFn, onSuccess })` for writes; `onSuccess` calls `queryClient.invalidateQueries` to keep the cache consistent without manual state updates.
+- Loading and error states are derived from `isPending` / `isError` returned by the hooks, not from local `useState`.
+
+---
+
 ## Backend integration
 
 **Development** — Vite dev server at `:5173` proxies `/api/*` → FastAPI at `:8000`. No CORS configuration needed on the frontend side; HMR works on source changes.
@@ -63,7 +77,7 @@ All routes are rendered inside a persistent `Sidebar` + `main` shell. `BrowserRo
 
 ## State management
 
-No global store. Each page component owns its data with `useState` + `useEffect`. Modal state (open/closed, record under edit) is co-located in the page that owns it. Data refetch after mutation keeps state consistent without a cache layer. This is sufficient because there is no shared mutable state across pages.
+No global store. Each page owns its server state via TanStack Query. UI-only state (open modal, selected tab, form values) stays in `useState` co-located in the component that owns it. Shared server cache is managed by the single `QueryClient` mounted at the root.
 
 ---
 

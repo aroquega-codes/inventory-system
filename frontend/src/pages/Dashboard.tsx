@@ -1,12 +1,24 @@
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { CritBadge, StockDot, currency } from '../utils'
 import type { DashboardSummary } from '../types'
 
+type Period = 7 | 30
+
+function healthColor(pct: number) {
+  if (pct >= 80) return 'var(--success)'
+  if (pct >= 60) return 'var(--warning)'
+  return 'var(--danger)'
+}
+
 export default function Dashboard() {
+  const [period, setPeriod] = useState<Period>(7)
+
   const { data: summary, isPending, isError, error } = useQuery<DashboardSummary>({
-    queryKey: ['dashboard-summary'],
-    queryFn: () => api.get<DashboardSummary>('/dashboard/summary'),
+    queryKey: ['dashboard-summary', period],
+    queryFn: () => api.get<DashboardSummary>(`/dashboard/summary?period=${period}`),
   })
 
   if (isPending) return <div className="empty-state">Loading…</div>
@@ -15,14 +27,22 @@ export default function Dashboard() {
   return (
     <>
       <div className="page-title">Dashboard</div>
+
+      {/* ── Current-state KPIs ─────────────────────────────────────────── */}
       <div className="cards">
         <div className="card">
           <div className="label">Total SKUs</div>
           <div className="value">{summary.total_skus}</div>
         </div>
         <div className="card">
-          <div className="label">Active Items</div>
-          <div className="value">{summary.active_items}</div>
+          <div className="label">Inventory Value</div>
+          <div className="value value-md">{currency(summary.total_inventory_value)}</div>
+        </div>
+        <div className="card">
+          <div className="label">Stock Health</div>
+          <div className="value" style={{ color: healthColor(summary.stock_health_pct) }}>
+            {summary.stock_health_pct}%
+          </div>
         </div>
         <div className="card warn-card">
           <div className="label">Below Reorder</div>
@@ -32,14 +52,51 @@ export default function Dashboard() {
           <div className="label">Open Alerts</div>
           <div className="value">{summary.open_alerts}</div>
         </div>
+      </div>
+
+      {/* ── Activity (time-scoped) ─────────────────────────────────────── */}
+      <div className="dash-section-header">
+        <span className="dash-section-label">Activity</span>
+        <div className="period-tabs">
+          <button
+            className={`period-tab${period === 7 ? ' active' : ''}`}
+            onClick={() => setPeriod(7)}
+          >
+            7 days
+          </button>
+          <button
+            className={`period-tab${period === 30 ? ' active' : ''}`}
+            onClick={() => setPeriod(30)}
+          >
+            30 days
+          </button>
+        </div>
+      </div>
+      <div className="cards cards-4">
         <div className="card">
-          <div className="label">Inventory Value</div>
-          <div className="value" style={{ fontSize: '18px' }}>{currency(summary.total_inventory_value)}</div>
+          <div className="label">Total Movements</div>
+          <div className="value">{summary.activity.movements_total}</div>
+        </div>
+        <div className="card">
+          <div className="label">Receipts</div>
+          <div className="value" style={{ color: 'var(--success)' }}>{summary.activity.receipts}</div>
+        </div>
+        <div className="card">
+          <div className="label">Issues</div>
+          <div className="value">{summary.activity.issues}</div>
+        </div>
+        <div className="card alert-card">
+          <div className="label">Alerts Opened</div>
+          <div className="value">{summary.activity.alerts_opened}</div>
         </div>
       </div>
 
+      {/* ── Critical Low-Stock table ───────────────────────────────────── */}
       <div className="table-wrap">
-        <div className="section-title">Critical Low-Stock Items</div>
+        <div className="table-section-header">
+          <div className="section-title">Critical Low-Stock Items</div>
+          <Link to="/alerts" className="view-all-link">View all alerts →</Link>
+        </div>
         <table>
           <thead>
             <tr>

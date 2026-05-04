@@ -50,13 +50,23 @@ export interface LowStockItem {
   lead_time_days: number | null
 }
 
+export interface ActivityMetrics {
+  period_days: number
+  movements_total: number
+  receipts: number
+  issues: number
+  alerts_opened: number
+}
+
 export interface DashboardSummary {
   total_skus: number
   active_items: number
   items_below_reorder: number
+  stock_health_pct: number
   open_alerts: number
   total_inventory_value: number
   low_stock_items: LowStockItem[]
+  activity: ActivityMetrics
 }
 
 export interface Movement {

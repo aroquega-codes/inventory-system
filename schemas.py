@@ -181,10 +181,20 @@ class LowStockItem(BaseModel):
     lead_time_days: Optional[int] = None
 
 
+class ActivityMetrics(BaseModel):
+    period_days: int
+    movements_total: int
+    receipts: int
+    issues: int
+    alerts_opened: int
+
+
 class DashboardSummary(BaseModel):
     total_skus: int
     active_items: int
     items_below_reorder: int
+    stock_health_pct: float
     total_inventory_value: float
     open_alerts: int
     low_stock_items: list[LowStockItem]
+    activity: ActivityMetrics

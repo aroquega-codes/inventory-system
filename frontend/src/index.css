@@ -207,6 +207,9 @@ body {
   #content-area, #content-area.sidebar-closed { margin-left: 0; }
   #main { padding: 16px; }
 
+  /* Dashboard activity cards: 2×2 on tablet/mobile */
+  .cards-4 { grid-template-columns: repeat(2, 1fr); }
+
   /* Toolbar: search full-width, filters wrap below */
   .toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
   .toolbar .search-box { min-width: 0; flex: none; width: 100%; }
@@ -228,14 +231,24 @@ body {
   .form-grid { grid-template-columns: 1fr; }
   .form-grid .full { grid-column: span 1; }
 }
+
+/* Narrow phones: pin KPI cards to 2-column */
+@media (max-width: 480px) {
+  .cards { grid-template-columns: repeat(2, 1fr); }
+  .page-title { font-size: 17px; }
+}
 .page-title { font-size: 20px; font-weight: 600; margin-bottom: 20px; }
 
 /* ── Cards ─────────────────────────────────────────────────────────────────── */
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
+}
+/* Fixed 4-column grid for the activity row */
+.cards-4 {
+  grid-template-columns: repeat(4, 1fr);
 }
 .card {
   background: var(--surface);
@@ -253,6 +266,63 @@ body {
 .card .value { font-size: 28px; font-weight: 700; }
 .card.alert-card .value { color: var(--danger); }
 .card.warn-card .value  { color: var(--warning); }
+
+/* ── Dashboard ──────────────────────────────────────────────────────────────── */
+.value-md { font-size: 20px !important; }
+
+.dash-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dash-section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.period-tabs {
+  display: flex;
+  gap: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px;
+}
+.period-tab {
+  padding: 4px 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.period-tab:hover { color: var(--text); }
+.period-tab.active { background: var(--accent-dim); color: #93c5fd; font-weight: 500; }
+
+.table-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.table-section-header .section-title { padding: 0; }
+.view-all-link {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.view-all-link:hover { text-decoration: underline; }
 
 /* ── Tables ─────────────────────────────────────────────────────────────────── */
 .table-wrap {

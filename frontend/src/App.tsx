@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { Menu, ChevronRight } from 'lucide-react'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import Items from './pages/Items'
@@ -19,13 +20,13 @@ export default function App() {
       {sidebarOpen && <div className="sidebar-overlay" onClick={close} />}
       {!sidebarOpen && (
         <button className="sidebar-reopen-btn" onClick={toggle} aria-label="Open navigation">
-          ›
+          <ChevronRight size={18} />
         </button>
       )}
       <div id="content-area" className={sidebarOpen ? '' : 'sidebar-closed'}>
         <header id="topbar">
           <button className="hamburger" onClick={toggle} aria-label="Toggle navigation">
-            ☰
+            <Menu size={20} />
           </button>
           <span className="topbar-brand">TAMBO IMS</span>
         </header>

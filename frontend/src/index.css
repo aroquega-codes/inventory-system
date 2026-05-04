@@ -77,6 +77,18 @@ body {
   margin-top: 2px;
 }
 .sidebar-toggle:hover { color: var(--text); }
+.sidebar-close-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  flex-shrink: 0;
+  align-items: center;
+}
+.sidebar-close-btn:hover { color: var(--text); }
 .nav-section {
   font-size: 10px;
   letter-spacing: .1em;
@@ -99,7 +111,7 @@ body {
 }
 .nav-item:hover { background: var(--surface2); color: var(--text); }
 .nav-item.active { background: var(--accent-dim); color: #93c5fd; }
-.nav-item .icon { font-size: 16px; width: 18px; text-align: center; }
+.nav-item .icon { display: flex; align-items: center; justify-content: center; width: 18px; flex-shrink: 0; }
 
 /* ── Sidebar overlay (mobile only) ─────────────────────────────────────────── */
 .sidebar-overlay {
@@ -191,6 +203,7 @@ body {
   #topbar { display: flex; }
   .sidebar-overlay { display: block; }
   .sidebar-toggle { display: none; }
+  .sidebar-close-btn { display: flex; }
   #content-area, #content-area.sidebar-closed { margin-left: 0; }
   #main { padding: 16px; }
 }

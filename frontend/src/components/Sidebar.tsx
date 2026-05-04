@@ -1,8 +1,19 @@
 import { NavLink } from 'react-router-dom'
+import {
+  LayoutDashboard,
+  Package,
+  ArrowLeftRight,
+  Bell,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 
 interface NavItem {
   to: string
-  icon: string
+  icon: LucideIcon
   label: string
 }
 
@@ -15,16 +26,16 @@ const sections: NavSection[] = [
   {
     label: 'Operations',
     items: [
-      { to: '/', icon: '📊', label: 'Dashboard' },
-      { to: '/items', icon: '📦', label: 'Items' },
-      { to: '/movements', icon: '🔄', label: 'Movements' },
-      { to: '/alerts', icon: '🔔', label: 'Alerts' },
+      { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/items', icon: Package, label: 'Items' },
+      { to: '/movements', icon: ArrowLeftRight, label: 'Movements' },
+      { to: '/alerts', icon: Bell, label: 'Alerts' },
     ],
   },
   {
     label: 'Admin',
     items: [
-      { to: '/setup', icon: '⚙️', label: 'Setup' },
+      { to: '/setup', icon: Settings, label: 'Setup' },
     ],
   },
 ]
@@ -47,26 +58,38 @@ export default function Sidebar({ isOpen, onToggle, onClose }: SidebarProps) {
           TAMBO IMS
           <small>Industrial Inventory</small>
         </div>
-        <button className="sidebar-toggle" onClick={onToggle} aria-label="Collapse sidebar">
-          {isOpen ? '‹' : '›'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button
+            className="sidebar-close-btn"
+            onClick={onClose}
+            aria-label="Close navigation"
+          >
+            <X size={18} />
+          </button>
+          <button className="sidebar-toggle" onClick={onToggle} aria-label="Collapse sidebar">
+            {isOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+          </button>
+        </div>
       </div>
       <nav style={{ padding: '12px 8px', flex: 1 }}>
         {sections.map(section => (
           <div key={section.label}>
             <div className="nav-section">{section.label}</div>
-            {section.items.map(item => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === '/'}
-                className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-                onClick={handleNavClick}
-              >
-                <span className="icon">{item.icon}</span>
-                {item.label}
-              </NavLink>
-            ))}
+            {section.items.map(item => {
+              const Icon = item.icon
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === '/'}
+                  className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+                  onClick={handleNavClick}
+                >
+                  <span className="icon"><Icon size={18} /></span>
+                  {item.label}
+                </NavLink>
+              )
+            })}
           </div>
         ))}
       </nav>

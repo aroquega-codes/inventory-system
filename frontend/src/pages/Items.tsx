@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Plus } from 'lucide-react'
 import { api } from '../api/client'
 import Modal from '../components/Modal'
 import { CritBadge, StockDot, currency } from '../utils'
@@ -31,9 +33,17 @@ export default function Items() {
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState('')
   const [critFilter, setCritFilter] = useState('')
+  const [sort, setSort] = useState('name:asc')
   const [modal, setModal] = useState<null | 'new' | Item>(null)
   const [form, setForm] = useState<ItemForm>(EMPTY_FORM)
   const [formError, setFormError] = useState('')
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768)
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth <= 768)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
 
   const { data: items = [], isPending: itemsPending } = useQuery<Item[]>({
     queryKey: ['items'],
@@ -63,11 +73,19 @@ export default function Items() {
     onError: (e) => setFormError((e as Error).message),
   })
 
-  const filtered = useMemo(() => items.filter(i =>
-    (!search || i.name.toLowerCase().includes(search.toLowerCase()) || i.sku.toLowerCase().includes(search.toLowerCase())) &&
-    (!catFilter || String(i.category_id) === catFilter) &&
-    (!critFilter || i.criticality === critFilter)
-  ), [items, search, catFilter, critFilter])
+  const filtered = useMemo(() => {
+    const result = items.filter(i =>
+      (!search || i.name.toLowerCase().includes(search.toLowerCase()) || i.sku.toLowerCase().includes(search.toLowerCase())) &&
+      (!catFilter || String(i.category_id) === catFilter) &&
+      (!critFilter || i.criticality === critFilter)
+    )
+    const [key, dir] = sort.split(':')
+    result.sort((a, b) => {
+      const cmp = key === 'name' ? a.name.localeCompare(b.name) : a.id - b.id
+      return dir === 'asc' ? cmp : -cmp
+    })
+    return result
+  }, [items, search, catFilter, critFilter, sort])
 
   async function openEdit(item: Item) {
     const full = await api.get<Item>('/items/' + item.id)
@@ -127,109 +145,151 @@ export default function Items() {
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
-        <select className="filter" value={catFilter} onChange={e => setCatFilter(e.target.value)}>
-          <option value="">All Categories</option>
-          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <select className="filter" value={critFilter} onChange={e => setCritFilter(e.target.value)}>
-          <option value="">All Criticality</option>
-          <option value="critical">Critical</option>
-          <option value="important">Important</option>
-          <option value="standard">Standard</option>
-        </select>
-        <button className="btn btn-primary" onClick={openNew}>+ New Item</button>
+        <div className="toolbar-filters">
+          <select className="filter" value={catFilter} onChange={e => setCatFilter(e.target.value)}>
+            <option value="">All Categories</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select className="filter" value={critFilter} onChange={e => setCritFilter(e.target.value)}>
+            <option value="">All Criticality</option>
+            <option value="critical">Critical</option>
+            <option value="important">Important</option>
+            <option value="standard">Standard</option>
+          </select>
+          <select className="filter" value={sort} onChange={e => setSort(e.target.value)}>
+            <option value="name:asc">Name A→Z</option>
+            <option value="name:desc">Name Z→A</option>
+            <option value="id:desc">Newest First</option>
+            <option value="id:asc">Oldest First</option>
+          </select>
+        </div>
+        {!isMobile && <button className="btn btn-primary" onClick={openNew}>+ New Item</button>}
       </div>
 
+      {isMobile && createPortal(
+        <button className="fab" onClick={openNew} aria-label="New Item">
+          <Plus size={24} />
+        </button>,
+        document.body
+      )}
+
       <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>SKU</th><th>Name</th><th>Category</th><th>Criticality</th>
-              <th>On Hand</th><th>Reorder Pt.</th><th>Unit Cost</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+        {isMobile ? (
+          <div data-testid="items-cards">
             {filtered.length === 0 ? (
-              <tr><td colSpan={8} className="empty-state">No items found</td></tr>
+              <div className="empty-state">No items found</div>
             ) : filtered.map(item => (
-              <tr key={item.id}>
-                <td className="mono">{item.sku}</td>
-                <td>
-                  {item.name}
-                  {item.description && <><br /><span className="tag">{item.description}</span></>}
-                </td>
-                <td className="tag">{item.category_name || '—'}</td>
-                <td><CritBadge value={item.criticality} /></td>
-                <td>
-                  <StockDot item={item} />
-                  <strong>{item.quantity_on_hand}</strong> {item.unit_of_measure}
-                </td>
-                <td>{item.reorder_point}</td>
-                <td>{currency(item.unit_cost)}</td>
-                <td>
+              <div key={item.id} className="item-card" data-testid={`item-card-${item.id}`}>
+                <div className="item-card-header">
+                  <div>
+                    <div className="item-card-name">{item.name}</div>
+                    <span className="mono">{item.sku}</span>
+                  </div>
                   <button className="btn btn-outline btn-sm" onClick={() => openEdit(item)}>Edit</button>
-                </td>
-              </tr>
+                </div>
+                <div className="item-card-meta">
+                  <CritBadge value={item.criticality} />
+                  {item.category_name && <span className="tag">{item.category_name}</span>}
+                  <span>
+                    <StockDot item={item} />
+                    <strong>{item.quantity_on_hand}</strong> {item.unit_of_measure}
+                  </span>
+                  <span>{currency(item.unit_cost)}</span>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        ) : (
+          <table data-testid="items-table">
+            <thead>
+              <tr>
+                <th>SKU</th><th>Name</th><th>Category</th><th>Criticality</th>
+                <th>On Hand</th><th>Reorder Pt.</th><th>Unit Cost</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={8} className="empty-state">No items found</td></tr>
+              ) : filtered.map(item => (
+                <tr key={item.id} data-testid={`item-row-${item.id}`}>
+                  <td className="mono">{item.sku}</td>
+                  <td>
+                    {item.name}
+                    {item.description && <><br /><span className="tag">{item.description}</span></>}
+                  </td>
+                  <td className="tag">{item.category_name || '—'}</td>
+                  <td><CritBadge value={item.criticality} /></td>
+                  <td>
+                    <StockDot item={item} />
+                    <strong>{item.quantity_on_hand}</strong> {item.unit_of_measure}
+                  </td>
+                  <td>{item.reorder_point}</td>
+                  <td>{currency(item.unit_cost)}</td>
+                  <td>
+                    <button className="btn btn-outline btn-sm" onClick={() => openEdit(item)}>Edit</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <Modal title={modal === 'new' ? 'New Item' : 'Edit Item'} open={!!modal} onClose={() => setModal(null)}>
         <div className="form-grid">
           <div className="form-row">
-            <label>SKU *</label>
-            <input type="text" value={form.sku} onChange={e => setField('sku', e.target.value)} placeholder="e.g. BRG-SKF-6205" />
+            <label htmlFor="item-sku">SKU *</label>
+            <input id="item-sku" type="text" value={form.sku} onChange={e => setField('sku', e.target.value)} placeholder="e.g. BRG-SKF-6205" />
           </div>
           <div className="form-row">
-            <label>Unit of Measure *</label>
-            <input type="text" value={form.unit_of_measure} onChange={e => setField('unit_of_measure', e.target.value)} placeholder="each / kg / litre…" />
+            <label htmlFor="item-uom">Unit of Measure *</label>
+            <input id="item-uom" type="text" value={form.unit_of_measure} onChange={e => setField('unit_of_measure', e.target.value)} placeholder="each / kg / litre…" />
           </div>
           <div className="form-row full">
-            <label>Name *</label>
-            <input type="text" value={form.name} onChange={e => setField('name', e.target.value)} />
+            <label htmlFor="item-name">Name *</label>
+            <input id="item-name" type="text" value={form.name} onChange={e => setField('name', e.target.value)} />
           </div>
           <div className="form-row full">
-            <label>Description</label>
-            <input type="text" value={form.description} onChange={e => setField('description', e.target.value)} />
+            <label htmlFor="item-description">Description</label>
+            <input id="item-description" type="text" value={form.description} onChange={e => setField('description', e.target.value)} />
           </div>
           <div className="form-row">
-            <label>Category</label>
-            <select value={form.category_id} onChange={e => setField('category_id', e.target.value)}>
+            <label htmlFor="item-category">Category</label>
+            <select id="item-category" value={form.category_id} onChange={e => setField('category_id', e.target.value)}>
               <option value="">— none —</option>
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div className="form-row">
-            <label>Default Supplier</label>
-            <select value={form.default_supplier_id} onChange={e => setField('default_supplier_id', e.target.value)}>
+            <label htmlFor="item-supplier">Default Supplier</label>
+            <select id="item-supplier" value={form.default_supplier_id} onChange={e => setField('default_supplier_id', e.target.value)}>
               <option value="">— none —</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <div className="form-row">
-            <label>Unit Cost (S/.)</label>
-            <input type="number" value={form.unit_cost} onChange={e => setField('unit_cost', e.target.value)} step="0.01" min="0" />
+            <label htmlFor="item-cost">Unit Cost (S/.)</label>
+            <input id="item-cost" type="number" value={form.unit_cost} onChange={e => setField('unit_cost', e.target.value)} step="0.01" min="0" />
           </div>
           <div className="form-row">
-            <label>Criticality</label>
-            <select value={form.criticality} onChange={e => setField('criticality', e.target.value as Criticality)}>
+            <label htmlFor="item-criticality">Criticality</label>
+            <select id="item-criticality" value={form.criticality} onChange={e => setField('criticality', e.target.value as Criticality)}>
               <option value="critical">Critical</option>
               <option value="important">Important</option>
               <option value="standard">Standard</option>
             </select>
           </div>
           <div className="form-row">
-            <label>Reorder Point</label>
-            <input type="number" value={form.reorder_point} onChange={e => setField('reorder_point', e.target.value)} min="0" step="1" />
+            <label htmlFor="item-reorder-point">Reorder Point</label>
+            <input id="item-reorder-point" type="number" value={form.reorder_point} onChange={e => setField('reorder_point', e.target.value)} min="0" step="1" />
           </div>
           <div className="form-row">
-            <label>Reorder Quantity</label>
-            <input type="number" value={form.reorder_quantity} onChange={e => setField('reorder_quantity', e.target.value)} min="0" step="1" />
+            <label htmlFor="item-reorder-qty">Reorder Quantity</label>
+            <input id="item-reorder-qty" type="number" value={form.reorder_quantity} onChange={e => setField('reorder_quantity', e.target.value)} min="0" step="1" />
           </div>
           <div className="form-row">
-            <label>Lead Time Override (days)</label>
-            <input type="number" value={form.lead_time_days} onChange={e => setField('lead_time_days', e.target.value)} min="1" step="1" placeholder="Leave blank = supplier default" />
+            <label htmlFor="item-lead-time">Lead Time Override (days)</label>
+            <input id="item-lead-time" type="number" value={form.lead_time_days} onChange={e => setField('lead_time_days', e.target.value)} min="1" step="1" placeholder="Leave blank = supplier default" />
           </div>
         </div>
         {formError && <div className="error-msg">{formError}</div>}

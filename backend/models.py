@@ -118,3 +118,11 @@ class ReorderAlert(Base):
     notes = Column(Text, nullable=True)
 
     item = relationship("Item", back_populates="alerts")
+
+class Employee(Base):
+    __tablename__ = 'employees'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    first_name = Column(String(200), default='')
+    last_name = Column(String(200), default='')

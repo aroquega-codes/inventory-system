@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from models import (
     AlertStatus, Base, Category, Criticality, Item, Location,
-    MovementType, ReorderAlert, StockMovement, Supplier,
+    MovementType, ReorderAlert, StockMovement, Supplier, Employee
 )
 
 DATABASE_URL = "sqlite:///./inventory.db"
@@ -56,6 +56,18 @@ def seed_db():
         db.add(s)
     db.flush()
     sup = {s.name: s.id for s in sups}
+    
+    # Employees
+
+    employees = [
+        Employee(first_name='Hristo', last_name='Roque'),
+        Employee(first_name='Amadeus', last_name='Roque'),
+    ]
+    
+    for e in employees:
+        db.add(e)
+        
+    db.flush()
 
     # ── Locations ────────────────────────────────────────────────────────────
     locs = [

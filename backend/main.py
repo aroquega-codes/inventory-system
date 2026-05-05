@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from database import init_db, seed_db
-from routers import alerts, categories, dashboard, items, locations, movements, suppliers
+from routers import alerts, categories, dashboard, items, locations, movements, suppliers, employees
 
 app = FastAPI(
     title="Industrial Inventory Management System",
@@ -29,6 +29,7 @@ app.include_router(items.router,       prefix="/api/items",       tags=["Items"]
 app.include_router(movements.router,   prefix="/api/movements",   tags=["Movements"])
 app.include_router(alerts.router,      prefix="/api/alerts",      tags=["Alerts"])
 app.include_router(dashboard.router,   prefix="/api/dashboard",   tags=["Dashboard"])
+app.include_router(employees.router, prefix='/api/employees', tags=['Employee'])
 
 
 @app.on_event("startup")
@@ -39,15 +40,6 @@ def startup():
 
 if os.path.isdir("frontend/dist/assets"):
     app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
-
-
-@app.get("/{full_path:path}", include_in_schema=False)
-def serve_spa(full_path: str = ""):
-    dist_file = os.path.join("frontend/dist", full_path)
-    if full_path and os.path.isfile(dist_file):
-        return FileResponse(dist_file)
-    return FileResponse("frontend/dist/index.html")
-
 
 def run():
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
